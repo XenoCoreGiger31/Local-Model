@@ -37,3 +37,4 @@ qwen_Q4.gguf filter=lfs diff=lfs merge=lfs -text
 qwen_q8.gguf filter=lfs diff=lfs merge=lfs -text
 qwen2.5-1.5b.safetensors/abliterated/uncensored filter=lfs diff=lfs merge=lfs -text
 qwen_Q4.gguf/iOS13/uncensored/abliterated filter=lfs diff=lfs merge=lfs -text
+qwen_q8.gguf/iOS13/uncensored/abliterated filter=lfs diff=lfs merge=lfs -text
