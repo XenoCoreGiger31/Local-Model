@@ -9,7 +9,7 @@ Designed for experimentation in offline agentic security systems, tool orchestra
 
 ## Features
 
-- **Local LLM Backend** — Qwen 2.5-7B served via LM Studio at `192.168.0.39:1234`
+- **Local LLM Backend** — Qwen 2.5-7B by default, with Qwen2.5-1.5 GGUF variants also supported via LM Studio at `192.168.0.39:1234`
 - **Autonomous Tool Execution** — Runs security tools (nmap, masscan) through MCP
 - **Agent Loop** — Agent Loop — Autonomous reasoning cycle for planning, execution, and analysis
 - **MCP Server** — Tool chain execution with `run_masscan`, `run_nmap`, `write_file`, `read_file`
@@ -68,6 +68,7 @@ Tested with:
 - Kali Linux VM
 - LM Studio
 - Qwen 2.5-7B
+- Qwen2.5-1.5 GGUF model variants
 - Python-based MCP server
 - Consumer-grade hardware
 
@@ -78,7 +79,7 @@ THE FRAMEWORK IS DESIGNED TO REMAIN UNDERSTANDABLE, HACKABLE, AND PORTABLE FOR I
 ## Installation & Setup
 
 1. Install Kali Linux with Suricata
-2. Install LM Studio and load Qwen 2.5-7B
+2. Install LM Studio and load Qwen 2.5-7B or a compatible Qwen2.5-1.5 GGUF model
 3. Configure firewall rules (see docs/firewall-setup.md)
 4. Clone this repository
 5. Install Python dependencies
