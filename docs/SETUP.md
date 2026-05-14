@@ -4,7 +4,7 @@
 
 - Kali Linux
 - LM Studio installed
-- Qwen 2.5-7B model loaded in LM Studio
+- Qwen 2.5-7B or a compatible Qwen2.5-1.5 GGUF model loaded in LM Studio
 - Python 3.8+
 - Suricata IDS
 - IPTables firewall
@@ -22,7 +22,7 @@ sudo systemctl enable suricata
 
 ## Step 3: LM Studio
 
-Load Qwen 2.5-7B on 192.168.0.39:1234
+Load Qwen 2.5-7B or a compatible Qwen2.5-1.5 GGUF model on 192.168.0.39:1234
 
 ## Step 4: Run Agent
 

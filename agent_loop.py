@@ -3,10 +3,11 @@ import json
 
 OLLAMA_URL = "http://192.168.0.39:1234/v1/chat/completions"
 MCP_URL = "http://localhost:8000"
+MODEL_NAME = "qwen"
 
 def call_model(goal):
     payload = {
-        "model": "qwen",
+        "model": MODEL_NAME,
         "messages": [
             {
                 "role": "user",
