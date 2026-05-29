@@ -1,0 +1,10 @@
+report_generator.py
+__pycache__/
+*.log
+*.txt
+*.backup
+*.bak
+logs/
+reports/
+agent.log
+*backup*.py
