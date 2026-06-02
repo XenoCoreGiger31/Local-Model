@@ -1,4 +1,4 @@
-![banner](./banner_final.png)
+![banner](./banner_animated.gif)
 
 ![demo](./Final_EDIT.gif)
 
