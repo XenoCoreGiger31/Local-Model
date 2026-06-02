@@ -1,3 +1,7 @@
+![banner](./banner_final.png)
+
+![demo](./Final_EDIT.gif)
+
 # Autonomous Security Agent
 A fully local autonomous cybersecurity agent that executes real security tooling (nmap, masscan) through an MCP-controlled Qwen 2.5-7B reasoning loop. Designed for offline execution, iterative decision-making, and tool-driven analysis without external APIs.
 Enables autonomous security workflows where an LLM can plan, execute, and analyze real penetration testing tools locally.
