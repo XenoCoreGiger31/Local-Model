@@ -1,5 +1,32 @@
 ![banner](./banner_animated.gif)
 
+![banner](./banner_final.png)
+
+![demo](./Final_EDIT.gif)
+
+
+(1) Issue and Rationale
+
+One issue that could use further study is whether listening to music while studying helps students perform better on tests. Many students listen to music when doing homework or preparing for exams, but it is not always clear if music helps concentration or becomes a distraction. I would design an experiment to learn whether music has a positive, negative, or no effect on test performance.
+
+(2) Hypothesis
+
+My hypothesis is that students who listen to calm instrumental music while studying will score higher on a test than students who study in complete silence.
+
+(3) Independent and Dependent Variables
+
+The independent variable is the study environment. One group of students will study while listening to calm instrumental music, and another group will study in silence.
+
+The dependent variable is the students' test scores. After studying, all participants will take the same test, and their scores will be compared.
+
+(4) Ethical Issues
+
+Several ethical issues would need to be considered. First, all participants would need to give informed consent before participating in the experiment. They should understand what the study involves and know that they can leave the study at any time. Participants' test scores and personal information should remain confidential. Researchers should also make sure that no participant is harmed or treated unfairly during the study.
+
+(5) Expected Conclusion
+
+I believe the students who study while listening to calm instrumental music will perform slightly better on the test. The music may help them relax and focus on the material. However, it is also possible that some students may learn better in silence because everyone studies differently. The results would help determine whether listening to music is an effective study method for most students.
+
 ![demo](./Final_EDIT.gif)
 
 # Autonomous Security Agent
