@@ -1,9 +1,7 @@
 ![banner](./banner_animated.gif)
-
-![banner](./banner_final.png)
+<video src="https://github.com/XenoCoreGiger31/Local-Model/releases/download/v1.1-animated-banner/fire.mov" autoplay loop muted width="100%"></video>
 
 ![demo](./Final_EDIT.gif)
-
 
 (1) Issue and Rationale
 
@@ -27,6 +25,7 @@ Several ethical issues would need to be considered. First, all participants woul
 
 I believe the students who study while listening to calm instrumental music will perform slightly better on the test. The music may help them relax and focus on the material. However, it is also possible that some students may learn better in silence because everyone studies differently. The results would help determine whether listening to music is an effective study method for most students.
 
+<video src="https://github.com/XenoCoreGiger31/Local-Model/releases/download/v1.1-animated-banner/fire.mov" autoplay loop muted width="100%"></video>
 ![demo](./Final_EDIT.gif)
 
 # Autonomous Security Agent
