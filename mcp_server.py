@@ -10,15 +10,70 @@ import sys
 from flask import Flask, request, jsonify
 import logging
 
+
+# SYSTEM PROMPT - Penetration Testing Agent
+SYSTEM_PROMPT = """You are an autonomous penetration testing agent.
+Understand context and user intent. Infer tools needed without asking.
+Chain tools intelligently. Return ONLY final results - no tool chain narration."""
+
 app = Flask(__name__)
+import os
+from datetime import datetime
+
+LOG_DIR = "/home/bigkali/security-agent/logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+SESSION_ID = datetime.now().strftime("%Y%m%d_%H%M%S")
+LOG_FILE = f"{LOG_DIR}/mcp_{SESSION_ID}.log"
+
+class EmojiFormatter(logging.Formatter):
+    ICONS = {
+        "TOOL":    "✅👍",
+        "FAIL":    "😤💀",
+        "ERROR":   "😭🔥",
+        "START":   "🚀",
+        "FILE":    "📁",
+        "WEB":     "🌐",
+        "CREDS":   "🔑",
+        "SCAN":    "🔍",
+        "SUCCESS": "🎉😄",
+    }
+    def format(self, record):
+        time = datetime.now().strftime("%H:%M:%S")
+        msg = record.getMessage()
+        icon = "ℹ️ "
+        for key, emoji in self.ICONS.items():
+            if f"[{key}]" in msg:
+                icon = emoji
+                msg = msg.replace(f"[{key}]", "").strip()
+                break
+        if record.levelno == logging.WARNING:
+            icon = "😤💀"
+        if record.levelno == logging.ERROR:
+            icon = "😭🔥"
+        return f"[{time}] {icon}  {msg}"
+
+def setup_logger():
+    logger = logging.getLogger("mcp")
+    logger.setLevel(logging.DEBUG)
+    logger.handlers = []
+    fmt = EmojiFormatter()
+    fh = logging.FileHandler(LOG_FILE)
+    fh.setFormatter(fmt)
+    sh = logging.StreamHandler()
+    sh.setFormatter(fmt)
+    logger.addHandler(fh)
+    logger.addHandler(sh)
+    return logger
+
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger()
 
 # Supported tools
 SUPPORTED_TOOLS = [
     "run_command", "run_masscan", "run_nmap", "run_netstat",
     "run_sqlmap", "run_nikto", "run_hydra", "run_searchsploit",
-    "run_curl", "run_wget", "write_file", "read_file"
+    "run_curl", "run_wget", "write_file", "read_file",
+    "run_john", "run_ncrack", "run_gobuster", "run_enum4linux", "run_medusa"
 ]
 
 # Kali tools that may need sudo
@@ -37,6 +92,8 @@ class ToolExecutor:
     
     def execute_tool(self, tool, params):
         """Execute a tool with automatic error recovery"""
+        # Use system prompt to guide autonomous execution
+        # No tool chain logging - only return final results
         
         if tool == "run_command":
             return self._run_command(params.get("command", ""))
@@ -78,7 +135,7 @@ class ToolExecutor:
                 params.get("target", ""),
                 params.get("service", "ssh"),
                 params.get("username", ""),
-                params.get("wordlist", ""),
+                params.get("wordlist", "/usr/share/seclists/Passwords/Common-Credentials/darkweb2017_top-1000.txt"),
                 params.get("threads", "16")
             )
         
@@ -111,7 +168,21 @@ class ToolExecutor:
         
         elif tool == "read_file":
             return self._read_file(params.get("filename", ""))
-        
+        elif tool == "run_john":
+            return self._run_john(params.get("hash_file", ""), params.get("wordlist", ""), params.get("format", ""))
+
+        elif tool == "run_ncrack":
+            return self._run_ncrack(params.get("target", ""), params.get("service", "ssh"), params.get("users", ""), params.get("wordlist", ""))
+
+        elif tool == "run_gobuster":
+            return self._run_gobuster(params.get("target", ""), params.get("wordlist", ""), params.get("mode", "dir"))
+
+        elif tool == "run_enum4linux":
+            return self._run_enum4linux(params.get("target", ""))
+
+        elif tool == "run_medusa":
+            return self._run_medusa(params.get("target", ""), params.get("service", "ssh"), params.get("username", ""), params.get("wordlist", ""))
+
         else:
             return {
                 "status": "error",
@@ -132,7 +203,7 @@ class ToolExecutor:
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=7200
             )
             
             if result.returncode == 0:
@@ -191,7 +262,7 @@ class ToolExecutor:
             return {
                 "status": "error",
                 "error_type": "timeout",
-                "message": "Command execution timed out (300s)",
+                "message": "Command execution timed out (600s)",
                 "recovery_suggestion": "Reduce scan scope or increase timeout"
             }
         
@@ -213,7 +284,6 @@ class ToolExecutor:
             }
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_command", "command": command, "result": result})
         return result
     
     def _run_masscan(self, target, ports, rate):
@@ -233,7 +303,6 @@ class ToolExecutor:
             if "permission" in result.get("message", "").lower():
                 result = self._execute_command(command, retry_with_sudo=True)
         
-        self.execution_log.append({"tool": "run_masscan", "target": target, "result": result})
         return result
     
     def _run_nmap(self, target, flags):
@@ -253,7 +322,6 @@ class ToolExecutor:
             if "permission" in result.get("message", "").lower():
                 result = self._execute_command(command, retry_with_sudo=True)
         
-        self.execution_log.append({"tool": "run_nmap", "target": target, "result": result})
         return result
     
     def _run_netstat(self, flags):
@@ -268,7 +336,6 @@ class ToolExecutor:
             if result["status"] == "success":
                 result["note"] = "Used 'ss' (modern netstat replacement)"
         
-        self.execution_log.append({"tool": "run_netstat", "result": result})
         return result
     
     def _run_sqlmap(self, target, technique, dbms, level, risk):
@@ -288,7 +355,6 @@ class ToolExecutor:
         command += " --batch"  # Non-interactive mode
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_sqlmap", "target": target, "result": result})
         return result
     
     def _run_nikto(self, target, port, ssl):
@@ -304,7 +370,6 @@ class ToolExecutor:
         command = f"nikto -h {protocol}://{target}:{port} -Format txt"
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_nikto", "target": target, "result": result})
         return result
     
     def _run_hydra(self, target, service, username, wordlist, threads):
@@ -316,10 +381,12 @@ class ToolExecutor:
                 "message": "Missing parameters: target, service, username, and wordlist are required"
             }
         
-        command = f"hydra -l {username} -P {wordlist} -t {threads} -v {target} {service}"
+        if service.lower() in ["vnc", "rdp"]:
+            command = f"hydra -P {wordlist} -t 4 -I {service}://{target}"
+        else:
+            command = f"hydra -l {username} -P {wordlist} -t {threads} -I {service}://{target}"
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_hydra", "target": target, "result": result})
         return result
     
     def _run_searchsploit(self, keyword, type_filter):
@@ -337,7 +404,6 @@ class ToolExecutor:
             command += f" -t {type_filter}"
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_searchsploit", "keyword": keyword, "result": result})
         return result
     
     def _run_curl(self, url, method, headers, data):
@@ -360,7 +426,6 @@ class ToolExecutor:
         command += " -v"  # Verbose output
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_curl", "url": url, "result": result})
         return result
     
     def _run_wget(self, url, output, recursive):
@@ -381,7 +446,6 @@ class ToolExecutor:
             command += " -r"
         
         result = self._execute_command(command)
-        self.execution_log.append({"tool": "run_wget", "url": url, "result": result})
         return result
     
     def _write_file(self, filename, content):
@@ -403,7 +467,6 @@ class ToolExecutor:
                 "filename": filename,
                 "bytes_written": len(content)
             }
-            self.execution_log.append({"tool": "write_file", "filename": filename, "result": result})
             return result
         
         except PermissionError:
@@ -423,7 +486,6 @@ class ToolExecutor:
                     "filename": filename,
                     "bytes_written": len(content)
                 }
-                self.execution_log.append({"tool": "write_file", "filename": filename, "result": result})
                 return result
             
             except Exception as e:
@@ -461,7 +523,6 @@ class ToolExecutor:
                 "content": content,
                 "bytes_read": len(content)
             }
-            self.execution_log.append({"tool": "read_file", "filename": filename, "result": result})
             return result
         
         except FileNotFoundError:
@@ -488,8 +549,63 @@ class ToolExecutor:
                 "recovery_suggestion": "Check file path and permissions"
             }
 
+
+    def _run_john(self, hash_file, wordlist, format):
+        if not hash_file:
+            return {"status": "error", "error_type": "invalid_params", "message": "No hash file specified"}
+        wordlist = wordlist or "/usr/share/seclists/Passwords/Common-Credentials/darkweb2017_top-1000.txt"
+        command = f"john {hash_file} --wordlist={wordlist}"
+        if format:
+            command += f" --format={format}"
+        return self._execute_command(command)
+
+    def _run_gobuster(self, target, wordlist, mode):
+        if not target:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
+        wordlist = wordlist or "/usr/share/seclists/Discovery/Web-Content/common.txt"
+        command = f"gobuster {mode} -u {target} -w {wordlist} -t 20"
+        return self._execute_command(command)
+
+    def _run_enum4linux(self, target):
+        if not target:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
+        command = f"enum4linux -a {target}"
+        return self._execute_command(command)
+
+    def _run_medusa(self, target, service, username, wordlist):
+        if not target or not username:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target or username specified"}
+        wordlist = wordlist or "/usr/share/seclists/Passwords/Common-Credentials/darkweb2017_top-1000.txt"
+        command = f"medusa -h {target} -u {username} -P {wordlist} -M {service} -t 4"
+        return self._execute_command(command)
+
+    def _run_ncrack(self, target, service, users, wordlist):
+        if not target:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
+        wordlist = wordlist or "/usr/share/seclists/Passwords/Common-Credentials/darkweb2017_top-1000.txt"
+        users_file = "/tmp/users.txt"
+        if users:
+            with open(users_file, "w") as f: f.write(users)
+        elif not os.path.exists(users_file):
+            with open(users_file, "w") as f: f.write("admin\nroot\nmsfadmin\nuser\n")
+        command = f"ncrack -U {users_file} -P {wordlist} {target}:{service}"
+        return self._execute_command(command)
+
 # Global executor
 executor = ToolExecutor()
+
+
+@app.route('/mcp', methods=['GET', 'POST'])
+def mcp_endpoint():
+    """MCP-compatible endpoint for Cursor and other MCP clients"""
+    from flask import request, jsonify
+    if request.method == 'GET':
+        return jsonify({
+            "name": "kali-security-agent",
+            "version": "1.0",
+            "tools": [{"name": t} for t in ALLOWED_TOOLS]
+        })
+    return execute()
 
 @app.route('/', methods=['POST'])
 def execute():
@@ -529,7 +645,7 @@ def execute():
         return jsonify(result), 200
     
     except Exception as e:
-        logger.error(f"Server error: {e}")
+        logger.error(f"[ERROR] Server error: {e}")
         return jsonify({
             "status": "error",
             "error_type": "server_error",
@@ -559,4 +675,4 @@ if __name__ == "__main__":
     print("  ✓ Security tools: SQLmap, Nikto, Hydra, Searchsploit")
     print("  ✓ Web tools: curl, wget")
     print("=" * 60)
-    app.run(host='localhost', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=False)
