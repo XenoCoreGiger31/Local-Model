@@ -4,10 +4,7 @@ import logging
 import re
 import os
 from datetime import datetime
-
-# ============================================================
-# 🚀 LOGGING SETUP - Human Readable Session Logs
-# ============================================================
+from agent_cache import NegativeCache
 
 LOG_DIR = "/home/bigkali/security-agent/logs"
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -67,10 +64,6 @@ log = setup_logger()
 log.info(f"[START] SECURITY AGENT SESSION {SESSION_ID}")
 log.info(f"[FILE] Log file: {LOG_FILE}")
 
-# ============================================================
-# ⚙️  CONFIG
-# ============================================================
-
 OLLAMA_URL = "http://192.168.0.39:1234/v1/chat/completions"
 MCP_URL = "http://localhost:8000"
 
@@ -113,11 +106,6 @@ RESPONSE FORMAT - VALID JSON ONLY:
 {"chain": [{"tool": "tool_name", "param1": "value1"}]}
 
 NO explanations. NO markdown. ONLY JSON."""
-
-
-# ============================================================
-# 🤖 MODEL + TOOL EXECUTION
-# ============================================================
 
 
 class AgentMemory:
@@ -222,10 +210,6 @@ def execute_step(step):
         log.error(f"[ERROR] 😭🔥 {tool} exception: {e}")
         return "", False
 
-# ============================================================
-# 🔍 RECON + ⚔️  ATTACK
-# ============================================================
-
 def run_recon(target, memory):
     log.info(f"[SCAN] Starting recon on {target}")
     goal = f"Scan {target} with masscan then nmap to find all open ports and services. JSON only."
@@ -240,7 +224,7 @@ def run_recon(target, memory):
             else:
                 log.warning(f"[SCAN] 😤💀 No ports found in output")
 
-def run_attack_loop(target, memory):
+def run_attack_loop(target, memory, cache=None):
     log.info(f"[ATTACK] Starting attack loop on {target}")
     while memory.has_untried_ports():
         port = memory.next_untried_port()
@@ -254,10 +238,21 @@ def run_attack_loop(target, memory):
             continue
         success = False
         for step in chain:
+            # ── Negative cache gate ──────────────────────────────
+            if cache and not cache.should_attempt(step):
+                log.warning(f"[MEMORY] 🚫 Skipping permanently blocked step: {step.get('tool')}")
+                continue
+            # ────────────────────────────────────────────────────
             output, ok = execute_step(step)
             if ok and output and any(x in output.lower() for x in ["password", "login", "session", "shell", "success", "found", "valid"]):
                 success = True
+                if cache:
+                    cache.record_success(step)
                 memory.add_finding(port, step.get("tool"), output[:2000])
+            elif not ok:
+                if cache:
+                    reason = f"tool={step.get('tool')} port={port} output_empty={not bool(output)}"
+                    cache.record_failure(step, reason=reason)
         memory.mark_tried(port, success=success)
     log.info(f"[ATTACK] Attack loop complete")
     summary = memory.summary()
@@ -269,24 +264,27 @@ def run_attack_loop(target, memory):
 
 def run_full_engagement(target):
     memory = AgentMemory()
+    cache = NegativeCache()
     log.info(f"[ENGAGE] 💣 Full engagement started on {target}")
     run_recon(target, memory)
     if memory.open_ports:
-        run_attack_loop(target, memory)
+        run_attack_loop(target, memory, cache)
     else:
         log.warning(f"[FAIL] 😤💀 No open ports found — aborting engagement")
     return memory
 
-# ============================================================
-# 🎯 MAIN
-# ============================================================
-
-def execute_chain(chain):
+def execute_chain(chain, cache=None):
     for i, step in enumerate(chain, 1):
         log.info(f"[CHAIN] 🔗 Step {i} of {len(chain)}: {step.get('tool')}")
-        execute_step(step)
+        if cache and not cache.should_attempt(step):
+            log.warning(f"[MEMORY] 🚫 Skipping permanently blocked step: {step.get('tool')}")
+            continue
+        output, ok = execute_step(step)
+        if not ok and cache:
+            cache.record_failure(step, reason=f"manual chain failure, step {i}")
 
 def main():
+    cache = NegativeCache()
     log.info("[START] 🚀 AUTONOMOUS SECURITY AGENT ONLINE")
     print("=" * 60)
     print("⚔️   AUTONOMOUS SECURITY AGENT")
@@ -303,7 +301,6 @@ def main():
             goal = input(">>> ").strip()
             if goal.lower() == "exit":
                 log.info("[START] Agent shutdown. Goodbye! 👋")
-
                 break
             if not goal:
                 continue
@@ -316,7 +313,7 @@ def main():
                 data = call_model(goal)
                 chain = data.get("chain", [])
                 if chain:
-                    execute_chain(chain)
+                    execute_chain(chain, cache=cache)
                 else:
                     log.warning("[FAIL] 😤💀 No tool chain generated")
         except KeyboardInterrupt:
@@ -330,8 +327,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# ============================================================
-# 🧠 AGENT MEMORY
-# ============================================================
-
