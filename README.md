@@ -39,7 +39,7 @@ Built on Kali Linux with a local LLM (Qwen 2.5-14B via LM Studio) and a Flask-ba
 
 -----
 
-## Tool Arsenal (17 tools)
+## Tool Arsenal (18 tools)
 
 |Tool              |Purpose                        |
 |------------------|-------------------------------|
@@ -60,6 +60,7 @@ Built on Kali Linux with a local LLM (Qwen 2.5-14B via LM Studio) and a Flask-ba
 |`run_metasploit`  |Framework exploitation         |
 |`run_wpscan`      |WordPress scanning             |
 |`run_whatweb`     |Web technology fingerprinting  |
+|`run_setoolkit`   |Social engineering attacks     |
 
 -----
 
