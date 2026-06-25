@@ -73,7 +73,8 @@ SUPPORTED_TOOLS = [
     "run_command", "run_masscan", "run_nmap", "run_netstat",
     "run_sqlmap", "run_nikto", "run_hydra", "run_searchsploit",
     "run_curl", "run_wget", "write_file", "read_file",
-    "run_john", "run_ncrack", "run_gobuster", "run_enum4linux", "run_medusa", "run_setoolkit"
+    "run_john", "run_ncrack", "run_gobuster", "run_enum4linux", "run_medusa", "run_setoolkit",
+    "run_subfinder", "run_nuclei", "run_katana", "run_ffuf", "run_httpx"
 ]
 
 # Kali tools that may need sudo
@@ -176,6 +177,21 @@ class ToolExecutor:
 
         elif tool == "run_setoolkit":
             return self._run_setoolkit(params.get("attack_type", "1"), params.get("target", ""))
+
+        elif tool == "run_subfinder":
+            return self._run_subfinder(params.get("domain", ""), params.get("silent", True))
+
+        elif tool == "run_nuclei":
+            return self._run_nuclei(params.get("target", ""), params.get("templates", ""), params.get("severity", ""))
+
+        elif tool == "run_katana":
+            return self._run_katana(params.get("target", ""), params.get("depth", "3"))
+
+        elif tool == "run_ffuf":
+            return self._run_ffuf(params.get("url", ""), params.get("wordlist", ""), params.get("param", "FUZZ"))
+
+        elif tool == "run_httpx":
+            return self._run_httpx(params.get("target", ""), params.get("flags", ""))
 
         elif tool == "run_gobuster":
             return self._run_gobuster(params.get("target", ""), params.get("wordlist", ""), params.get("mode", "dir"))
@@ -370,7 +386,8 @@ class ToolExecutor:
             }
         
         protocol = "https" if ssl else "http"
-        command = f"nikto -h {protocol}://{target}:{port} -Format txt"
+        target = target.replace("http://", "").replace("https://", "").rstrip("/")
+        command = f"nikto -h {target} -p {port} -Format txt"
         
         result = self._execute_command(command)
         return result
@@ -583,7 +600,10 @@ class ToolExecutor:
         if not target:
             return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
         wordlist = wordlist or "/usr/share/seclists/Passwords/Common-Credentials/darkweb2017_top-1000.txt"
-        command = f"ncrack -U /tmp/users.txt -P {wordlist} {target}:{service}"
+        users = users or "root,admin,administrator"
+        with open("/tmp/users.txt", "w") as f:
+            f.write(users.replace(",", "\n"))
+        command = f"ncrack {service}://{target} -U /tmp/users.txt -P {wordlist}"
         return self._execute_command(command)
 
     def _run_setoolkit(self, attack_type, target):
@@ -592,8 +612,53 @@ class ToolExecutor:
         command = f"echo '{attack_type}\n2\n{target}' | sudo setoolkit"
         return self._execute_command(command)
 
-# Global executor
-executor = ToolExecutor()
+
+
+    def _run_subfinder(self, domain, silent):
+        if not domain:
+            return {"status": "error", "error_type": "invalid_params", "message": "No domain specified"}
+        command = f"subfinder -d {domain}"
+        if silent:
+            command += " -silent"
+        return self._execute_command(command)
+
+    def _run_nuclei(self, target, templates, severity):
+        if not target:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
+        command = f"nuclei -u {target}"
+        if templates:
+            command += f" -t {templates}"
+        if severity:
+            command += f" -severity {severity}"
+        command += " -silent"
+        return self._execute_command(command)
+
+    def _run_katana(self, target, depth):
+        if not target:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
+        command = f"katana -u {target} -depth {depth} -silent"
+        return self._execute_command(command)
+
+    def _run_ffuf(self, url, wordlist, param):
+        if not url:
+            return {"status": "error", "error_type": "invalid_params", "message": "No URL specified"}
+        wordlist = wordlist or "/usr/share/seclists/Discovery/Web-Content/common.txt"
+        if param not in url:
+            url = url + f"/{param}"
+        command = f"ffuf -u {url} -w {wordlist} -mc 200,301,302,403 -silent"
+        return self._execute_command(command)
+
+    def _run_httpx(self, target, flags):
+        if not target:
+            return {"status": "error", "error_type": "invalid_params", "message": "No target specified"}
+        command = f"/home/bigkali/go/bin/httpx -u {target}"
+        if flags:
+            command += f" {flags}"
+        else:
+            command += " -status-code -title -tech-detect -silent"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
+        return {"status": "success", "output": result.stdout, "stderr": result.stderr}
+
 
 @app.route('/', methods=['POST'])
 def execute():
@@ -629,7 +694,8 @@ def execute():
             }), 400
         
         # Execute tool autonomously (no user confirmation needed)
-        result = executor.execute_tool(tool, data)
+        params = {k: v for k, v in data.items() if k != "tool"}
+        result = executor.execute_tool(tool, params)
         return jsonify(result), 200
     
     except Exception as e:
@@ -663,4 +729,7 @@ if __name__ == "__main__":
     print("  ✓ Security tools: SQLmap, Nikto, Hydra, Searchsploit")
     print("  ✓ Web tools: curl, wget")
     print("=" * 60)
-    app.run(host='localhost', port=8000, debug=False)
+
+executor = ToolExecutor()
+
+app.run(host='0.0.0.0', port=8000, debug=False)
