@@ -1,0 +1,13 @@
+
+{
+  "tools": [
+    {
+      "name": "write_file",
+      "description": "Writes text content to a file on the local system",
+      "input": {
+        "filename": "string",
+        "content": "string"
+      }
+    }
+  ]
+}
